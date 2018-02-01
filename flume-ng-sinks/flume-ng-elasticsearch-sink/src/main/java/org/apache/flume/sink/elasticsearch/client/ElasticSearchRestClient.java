@@ -19,127 +19,154 @@
 package org.apache.flume.sink.elasticsearch.client;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.gson.Gson;
+import java.io.IOException;
+
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.sink.elasticsearch.ElasticSearchEventSerializer;
 import org.apache.flume.sink.elasticsearch.IndexNameBuilder;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.StringEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.util.EntityUtils;
-import org.elasticsearch.common.bytes.BytesReference;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoRequest;
+import org.elasticsearch.action.admin.cluster.node.info.NodesInfoResponse;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.support.AbstractClient;
+import org.elasticsearch.common.transport.TransportAddress;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+
+import static org.apache.flume.sink.elasticsearch.ElasticSearchSinkConstants.DEFAULT_REST_PORT;
 
 /**
- * Rest ElasticSearch client which is responsible for sending bulks of events to
- * ElasticSearch using ElasticSearch HTTP API. This is configurable, so any
- * config params required should be taken through this.
- */
+ * Rest ElasticSearch client using the ElasticSearch High-Level Rest Client, 
+ * which is compatible with ElasticSearch 6.x and above.
+*/
 public class  ElasticSearchRestClient implements ElasticSearchClient {
 
-  private static final String INDEX_OPERATION_NAME = "index";
-  private static final String INDEX_PARAM = "_index";
-  private static final String TYPE_PARAM = "_type";
-  private static final String BULK_ENDPOINT = "_bulk";
+  public static final Logger logger = LoggerFactory
+      .getLogger(ElasticSearchTransportClient.class);
 
-  private static final Logger logger = LoggerFactory.getLogger(ElasticSearchRestClient.class);
-
-  private final ElasticSearchEventSerializer serializer;
-  private final RoundRobinList<String> serversList;
-  
-  private StringBuilder bulkBuilder;
-  private HttpClient httpClient;
-  
-  public ElasticSearchRestClient(String[] hostNames,
-      ElasticSearchEventSerializer serializer) {
-
-    for (int i = 0; i < hostNames.length; ++i) {
-      if (!hostNames[i].contains("http://") && !hostNames[i].contains("https://")) {
-        hostNames[i] = "http://" + hostNames[i];
-      }
-    }
-    this.serializer = serializer;
-
-    serversList = new RoundRobinList<String>(Arrays.asList(hostNames));
-    httpClient = new DefaultHttpClient();
-    bulkBuilder = new StringBuilder();
-  }
+  private HttpHost[] serverAddresses;
+  private ElasticSearchEventSerializer serializer;
+  private RestHighLevelClient client;
+  private BulkRequest bulkRequest = null;
 
   @VisibleForTesting
+  HttpHost[] getServerAddresses() {
+    return serverAddresses;
+  }
+
+  /**
+   * Rest client for external cluster
+   * 
+   * @param hostNames
+   * @param serializer
+   */
   public ElasticSearchRestClient(String[] hostNames,
-          ElasticSearchEventSerializer serializer, HttpClient client) {
-    this(hostNames, serializer);
-    httpClient = client;
+      ElasticSearchEventSerializer serializer) {
+    configureHostnames(hostNames);
+    this.serializer = serializer;
+    openClient();
+  }
+
+  /**
+   * Local client only for testing
+   *
+   * @param serializer
+   */
+  public ElasticSearchRestClient(ElasticSearchEventSerializer serializer) {
+    this.serializer = serializer;
+    openLocalClient();
+  }
+
+  private void configureHostnames(String[] hostNames) {
+    logger.warn(Arrays.toString(hostNames));
+    serverAddresses = new HttpHost[hostNames.length];
+    for (int i = 0; i < hostNames.length; i++) {
+      String[] httpHost = hostNames[i].trim().split(":");
+      String host = httpHost[0].trim();
+      int port = httpHost.length > 1 ? Integer.parseInt(httpHost[1].trim())
+              : DEFAULT_REST_PORT;
+      String transportMethod = httpHost.length == 3 ? httpHost[2].trim()
+              : "http";
+      serverAddresses[i] = new HttpHost(host, port, transportMethod);
+    }
+  }
+  
+  @Override
+  public void close() {
+    if (client != null) {
+      try {
+        client.close();
+      } catch (IOException e) {
+        logger.error("Error closing client: ", e.getMessage());
+      }
+    }
+    client = null;
+  }
+
+  @Override
+  public void addEvent(Event event, IndexNameBuilder indexNameBuilder,
+      String indexType) throws Exception {
+    
+    if (bulkRequest == null) {
+      bulkRequest = new BulkRequest();
+    }
+
+    bulkRequest.add(new IndexRequest(indexNameBuilder.getIndexName(event), indexType)
+        .source(serializer.getContentBuilder(event).bytes(), XContentType.JSON));
+  }
+
+  @Override
+  public void execute() throws Exception {
+    try {
+      BulkResponse bulkResponse = client.bulk(bulkRequest);
+      if (bulkResponse.hasFailures()) {
+        throw new EventDeliveryException(bulkResponse.buildFailureMessage());
+      }
+    } finally {
+      bulkRequest = new BulkRequest();;
+    }
+  }
+
+  /**
+   * Open Connection to ElasticSearch Rest Client
+   */
+  private void openClient() {
+    logger.info("Using ElasticSearch hostnames: {} ",
+        Arrays.toString(serverAddresses));
+
+    close();
+    client = new RestHighLevelClient(RestClient.builder(serverAddresses));
   }
 
   @Override
   public void configure(Context context) {
   }
 
-  @Override
-  public void close() {
-  }
-
-  @Override
-  public void addEvent(Event event, IndexNameBuilder indexNameBuilder, String indexType)
-      throws Exception {
-    BytesReference content = serializer.getContentBuilder(event).bytes();
-    Map<String, Map<String, String>> parameters = new HashMap<String, Map<String, String>>();
-    Map<String, String> indexParameters = new HashMap<String, String>();
-    indexParameters.put(INDEX_PARAM, indexNameBuilder.getIndexName(event));
-    indexParameters.put(TYPE_PARAM, indexType);
-    parameters.put(INDEX_OPERATION_NAME, indexParameters);
-
-    Gson gson = new Gson();
-    synchronized (bulkBuilder) {
-      bulkBuilder.append(gson.toJson(parameters));
-      bulkBuilder.append("\n");
-      bulkBuilder.append(content.toBytesRef().utf8ToString());
-      bulkBuilder.append("\n");
-    }
-  }
-
-  @Override
-  public void execute() throws Exception {
-    int statusCode = 0, triesCount = 0;
-    HttpResponse response = null;
-    String entity;
-    synchronized (bulkBuilder) {
-      entity = bulkBuilder.toString();
-      bulkBuilder = new StringBuilder();
-    }
-
-    while (statusCode != HttpStatus.SC_OK && triesCount < serversList.size()) {
-      triesCount++;
-      String host = serversList.get();
-      String url = host + "/" + BULK_ENDPOINT;
-      HttpPost httpRequest = new HttpPost(url);
-      httpRequest.setEntity(new StringEntity(entity));
-      response = httpClient.execute(httpRequest);
-      statusCode = response.getStatusLine().getStatusCode();
-      logger.info("Status code from elasticsearch: " + statusCode);
-      if (response.getEntity() != null) {
-        logger.debug("Status message from elasticsearch: " +
-                     EntityUtils.toString(response.getEntity(), "UTF-8"));
+  /*
+   * FOR TESTING ONLY...
+   * 
+   * Opens a local discovery node for talking to an ElasticSearch server running
+   * in the same JVM
+   */
+  private void openLocalClient() {
+    // The elasticsearch-maven-plugin starts a local ES instance
+    // which is running on 127.0.0.1:9200
+    if (client != null) {
+      try {
+        client.close();
+      } catch (IOException e) {
+        e.printStackTrace();
       }
     }
-
-    if (statusCode != HttpStatus.SC_OK) {
-      if (response.getEntity() != null) {
-        throw new EventDeliveryException(EntityUtils.toString(response.getEntity(), "UTF-8"));
-      } else {
-        throw new EventDeliveryException("Elasticsearch status code was: " + statusCode);
-      }
-    }
+    client = new RestHighLevelClient(RestClient.builder(new HttpHost("127.0.0.1", 9200, "http")));
   }
 }

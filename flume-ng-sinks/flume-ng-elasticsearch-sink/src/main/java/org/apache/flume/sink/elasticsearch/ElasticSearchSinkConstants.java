@@ -96,11 +96,12 @@ public class ElasticSearchSinkConstants {
    * DEFAULTS USED BY THE SINK
    */
 
+  public static final int DEFAULT_REST_PORT = 9200;
   public static final int DEFAULT_PORT = 9300;
   public static final String DEFAULT_INDEX_NAME = "flume";
   public static final String DEFAULT_INDEX_TYPE = "log";
   public static final String DEFAULT_CLUSTER_NAME = "elasticsearch";
-  public static final String DEFAULT_CLIENT_TYPE = "transport";
+  public static final String DEFAULT_CLIENT_TYPE = "rest";
   public static final String DEFAULT_COMPRESS = "true";
   public static final String DEFAULT_SERIALIZER_CLASS = "org.apache.flume." +
           "sink.elasticsearch.ElasticSearchLogStashEventSerializer";
