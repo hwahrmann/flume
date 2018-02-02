@@ -19,14 +19,10 @@
 package org.apache.flume.sink.elasticsearch.client;
 
 import org.apache.flume.Event;
-import org.apache.flume.EventDeliveryException;
 import org.apache.flume.sink.elasticsearch.ContentBuilderUtil;
 import org.apache.flume.sink.elasticsearch.ElasticSearchEventSerializer;
 import org.apache.flume.sink.elasticsearch.IndexNameBuilder;
 import org.apache.lucene.util.BytesRef;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.RestClient;
-import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.bytes.BytesReference;
 import org.elasticsearch.common.io.stream.BytesStream;
 import org.elasticsearch.common.xcontent.XContentBuilder;
@@ -39,7 +35,6 @@ import java.io.IOException;
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.mockito.MockitoAnnotations.initMocks;
 
