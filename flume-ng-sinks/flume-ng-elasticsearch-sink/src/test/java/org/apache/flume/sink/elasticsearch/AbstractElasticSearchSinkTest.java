@@ -24,21 +24,32 @@ import org.apache.flume.Event;
 import org.apache.flume.channel.MemoryChannel;
 import org.apache.flume.conf.Configurables;
 import org.apache.flume.sink.elasticsearch.client.ElasticSearchTransportClient;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpStatus;
+import org.elasticsearch.ElasticsearchException;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.Response;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.node.Node;
+import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
 import org.elasticsearch.transport.Netty4Plugin;
 import org.joda.time.DateTimeUtils;
 import org.junit.After;
 import org.junit.Before;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Map;
@@ -57,8 +68,7 @@ public abstract class AbstractElasticSearchSinkTest {
   static final String DEFAULT_CLUSTER_NAME = "elasticsearch";
   static final long FIXED_TIME_MILLIS = 123456789L;
 
-  Node node;
-  Client client;
+  RestHighLevelClient client;
   String timestampedIndexName;
   Map<String, String> parameters;
 
@@ -73,35 +83,45 @@ public abstract class AbstractElasticSearchSinkTest {
         + ElasticSearchIndexRequestBuilderFactory.df.format(FIXED_TIME_MILLIS);
   }
 
-  void createNodes() throws Exception {
+  void createClient() throws Exception {
     String hostname = "localhost";
-    Settings settings = Settings.builder()
-        .put("cluster.name", "test")
-        // required to build a cluster, replica tests will test this.
-        .put("discovery.zen.ping.unicast.hosts", hostname)
-        .put("transport.type", Netty4Plugin.NETTY_TRANSPORT_NAME)
-        .put("network.host", hostname)
-        .put("http.enabled", false)
-        .put("path.home", "target/es-test" + UUID.randomUUID())
-        // maximum five nodes on same host
-        .put("node.max_local_storage_nodes", 5)
-        .put("thread_pool.bulk.size", Runtime.getRuntime().availableProcessors())
-        // default is 50 which is too low
-        .put("thread_pool.bulk.queue_size", 16 * Runtime.getRuntime().availableProcessors())
-        .build();
-
-    node = new MockNode(settings, Netty4Plugin.class);
-    node.start();
-    client = node.client();
-
-    ElasticSearchTransportClient.testClient = (AbstractClient) client;
-    client.admin().cluster().prepareHealth().setWaitForGreenStatus().execute()
-        .actionGet();
+    client = new RestHighLevelClient(RestClient.builder(new HttpHost(hostname, 9200, "http")));
   }
 
-  void shutdownNodes() throws Exception {
-    client.close();
-    node.close();
+  void shutdownClient() throws Exception {
+    if (client != null) {
+      client.close();
+    }
+  }
+
+
+  void refreshIndex(String indexName)
+  {
+    try {
+      Response response = client.getLowLevelClient().performRequest("POST", "/"+indexName+"/_refresh");
+      if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
+        
+      }
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  void deleteIndex(String indexName)
+  {
+    try {
+      DeleteIndexRequest request = new DeleteIndexRequest(indexName);
+      client.indices().deleteIndex(request);
+    } catch (ElasticsearchException ex) {
+      if (ex.status() != RestStatus.NOT_FOUND) {
+        // We accept an Index not found, but would like to get an error on everything else
+        ex.printStackTrace();
+      }
+    }
+    catch (IOException e)
+    {
+      e.printStackTrace();
+    }
   }
 
   @Before
@@ -138,8 +158,13 @@ public abstract class AbstractElasticSearchSinkTest {
   }
 
   SearchResponse performSearch(QueryBuilder query) {
-    return client.prepareSearch(timestampedIndexName)
-        .setTypes(DEFAULT_INDEX_TYPE).setQuery(query).execute().actionGet();
+    try {
+      return client.search(new SearchRequest(timestampedIndexName)
+          .source(new SearchSourceBuilder().query(query)));
+    } catch (IOException e) {
+      e.printStackTrace();
+      return null;
+    }
   }
 
   void assertSearch(int expectedHits, SearchResponse response, Map<String, Object> expectedBody,
