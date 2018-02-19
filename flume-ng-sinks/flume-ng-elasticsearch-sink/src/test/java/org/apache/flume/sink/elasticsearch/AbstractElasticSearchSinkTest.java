@@ -88,31 +88,25 @@ public abstract class AbstractElasticSearchSinkTest {
   }
 
 
-  void refreshIndex(String indexName)
-  {
+  void refreshIndex(String indexName) {
     try {
-      Response response = client.getLowLevelClient().performRequest("POST", "/"+indexName+"/_refresh");
-      if (response.getStatusLine().getStatusCode() != HttpStatus.SC_OK) {
-        
-      }
+      Response response = client.getLowLevelClient()
+          .performRequest("POST", "/" + indexName + "/_refresh");
     } catch (IOException e) {
       e.printStackTrace();
     }
   }
 
-  void deleteIndex(String indexName)
-  {
+  void deleteIndex(String indexName) {
     try {
       DeleteIndexRequest request = new DeleteIndexRequest(indexName);
-      client.indices().deleteIndex(request);
+      client.indices().delete(request);
     } catch (ElasticsearchException ex) {
       if (ex.status() != RestStatus.NOT_FOUND) {
         // We accept an Index not found, but would like to get an error on everything else
         ex.printStackTrace();
       }
-    }
-    catch (IOException e)
-    {
+    } catch (IOException e) {
       e.printStackTrace();
     }
   }

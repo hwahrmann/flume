@@ -38,10 +38,11 @@
         <version>6.0</version>
         <configuration>
            <!-- REPLACE THE FOLLOWING WITH THE ELASTICSEARCH VERSION YOU NEED -->
-           <version>6.1.0</version>
+           <version>6.2.1</version>
            <clusterName>test</clusterName>
            <transportPort>9300</transportPort>
            <httpPort>9200</httpPort>
+           <timeout>60</timeout>
         </configuration>
         <executions>
           <!--
@@ -50,7 +51,7 @@
           -->
           <execution>
             <id>start-elasticsearch</id>
-            <phase>process-test-classes</phase>
+            <phase>test</phase>
             <goals>
                 <goal>runforked</goal>
             </goals>
