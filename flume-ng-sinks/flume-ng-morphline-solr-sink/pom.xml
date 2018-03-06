@@ -55,6 +55,14 @@ limitations under the License.
             <groupId>org.apache.hadoop</groupId>
            <artifactId>hadoop-common</artifactId>
         </exclusion>
+        <exclusion>
+            <groupId>org.kitesdk</groupId>
+            <artifactId>cdk-morphlines-solr-core</artifactId>
+        </exclusion>
+        <exclusion>
+            <groupId>org.kitesdk</groupId>
+            <artifactId>cdk-morphlines-solr-cell</artifactId>
+        </exclusion>
       </exclusions>
       <type>pom</type>
       <optional>true</optional>
@@ -79,6 +87,18 @@ limitations under the License.
       <version>${kite.version}</version>
       <type>test-jar</type>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.solr</groupId>
+      <artifactId>solr-morphlines-core</artifactId>
+      <version>${morphlines.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.solr</groupId>
+      <artifactId>solr-cell</artifactId>
+      <version>${morphlines.version}</version>
     </dependency>
 
     <dependency>

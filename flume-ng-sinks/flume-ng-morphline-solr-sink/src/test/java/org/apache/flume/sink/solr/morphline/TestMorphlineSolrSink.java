@@ -39,10 +39,11 @@ import org.apache.flume.conf.Configurables;
 import org.apache.flume.event.EventBuilder;
 import org.apache.solr.SolrTestCaseJ4;
 import org.apache.solr.client.solrj.SolrQuery;
-import org.apache.solr.client.solrj.SolrServer;
+import org.apache.solr.client.solrj.SolrClient;
 import org.apache.solr.client.solrj.SolrServerException;
 import org.apache.solr.client.solrj.response.QueryResponse;
 import org.apache.solr.common.SolrDocument;
+import org.apache.solr.morphlines.solr.SolrClientDocumentLoader;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -57,7 +58,6 @@ import org.kitesdk.morphline.base.Fields;
 import org.kitesdk.morphline.solr.DocumentLoader;
 import org.kitesdk.morphline.solr.SolrLocator;
 import org.kitesdk.morphline.solr.SolrMorphlineContext;
-import org.kitesdk.morphline.solr.SolrServerDocumentLoader;
 import org.kitesdk.morphline.solr.TestEmbeddedSolrServer;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Charsets;
@@ -68,7 +68,7 @@ import com.google.common.io.Files;
 public class TestMorphlineSolrSink extends SolrTestCaseJ4 {
 
   private EmbeddedSource source;
-  private SolrServer solrServer;
+  private SolrClient solrServer;
   private MorphlineSink sink;
   private Map<String,Integer> expectedRecords;
 
@@ -136,7 +136,7 @@ public class TestMorphlineSolrSink extends SolrTestCaseJ4 {
     }
     
     int batchSize = SEQ_NUM2.incrementAndGet() % 2 == 0 ? 100 : 1;
-    DocumentLoader testServer = new SolrServerDocumentLoader(solrServer, batchSize);
+    DocumentLoader testServer = (DocumentLoader) new SolrClientDocumentLoader(solrServer, batchSize);
     MorphlineContext solrMorphlineContext = new SolrMorphlineContext.Builder()
         .setDocumentLoader(testServer)
         .setExceptionHandler(new FaultTolerance(false, false, SolrServerException.class.getName()))
@@ -184,7 +184,7 @@ public class TestMorphlineSolrSink extends SolrTestCaseJ4 {
   }
   
   private void deleteAllDocuments() throws SolrServerException, IOException {
-    SolrServer s = solrServer;
+    SolrClient s = solrServer;
     s.deleteByQuery("*:*"); // delete everything!
     s.commit();
   }
