@@ -58,7 +58,7 @@ import org.kitesdk.morphline.base.Fields;
 import org.kitesdk.morphline.solr.DocumentLoader;
 import org.kitesdk.morphline.solr.SolrLocator;
 import org.kitesdk.morphline.solr.SolrMorphlineContext;
-import org.kitesdk.morphline.solr.TestEmbeddedSolrServer;
+import org.apache.flume.sink.solr.morphline.TestEmbeddedSolrServer;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableListMultimap;

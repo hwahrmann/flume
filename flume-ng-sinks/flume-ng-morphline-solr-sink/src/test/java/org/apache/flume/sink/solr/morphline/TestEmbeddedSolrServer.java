@@ -16,18 +16,30 @@
  */
 package org.apache.flume.sink.solr.morphline;
 
-import java.net.UnknownHostException;
+import java.io.IOException;
 
-import org.junit.Test;
+import org.apache.solr.client.solrj.SolrServerException;
+import org.apache.solr.client.solrj.embedded.EmbeddedSolrServer;
+import org.apache.solr.client.solrj.response.UpdateResponse;
+import org.apache.solr.core.CoreContainer;
 
-import org.kitesdk.morphline.solr.EnvironmentTest;
+/**
+ * An EmbeddedSolrServer that supresses shutdown and rollback requests as
+ * necessary for testing
+ */
+public class TestEmbeddedSolrServer extends EmbeddedSolrServer {
 
-/** Print and verify some info about the environment in which the unit tests are running */
-public class TestEnvironment extends EnvironmentTest {
-
-  @Test
-  public void testEnvironment() throws UnknownHostException {
-    super.testEnvironment();
+  public TestEmbeddedSolrServer(CoreContainer coreContainer, String coreName) {
+    super(coreContainer, coreName);
   }
-  
+
+  @Override
+  public void close() {
+    ; // NOP
+  }
+
+  @Override
+  public UpdateResponse rollback() throws SolrServerException, IOException {
+    return new UpdateResponse();
+  }
 }
