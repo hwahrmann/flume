@@ -65,11 +65,6 @@ public class ContentBuilderUtil {
       // elasticsearch as plain text.
       parser = XContentFactory.xContent(contentType)
           .createParser(NamedXContentRegistry.EMPTY, data);
-      while (parser.nextToken() != null) {};
-
-      // If the JSON is valid then include it
-      parser = XContentFactory.xContent(contentType)
-          .createParser(NamedXContentRegistry.EMPTY, data);
       // Add the field name, but not the value.
       builder.field(fieldName);
       // This will add the whole parsed content as the value of the field.

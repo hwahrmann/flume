@@ -35,7 +35,7 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 public interface ElasticSearchEventSerializer extends Configurable,
     ConfigurableComponent {
 
-  public static final Charset charset = Charset.defaultCharset();
+  static final Charset charset = Charset.defaultCharset();
 
   /**
    * Return an {@link BytesStream} made up of the serialized flume event
@@ -45,5 +45,5 @@ public interface ElasticSearchEventSerializer extends Configurable,
    * @throws IOException
    *           If an error occurs during serialization
    */
-  abstract XContentBuilder getContentBuilder(Event event) throws IOException;
+  XContentBuilder getContentBuilder(Event event) throws IOException;
 }

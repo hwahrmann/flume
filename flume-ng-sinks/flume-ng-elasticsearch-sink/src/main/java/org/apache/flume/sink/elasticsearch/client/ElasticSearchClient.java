@@ -44,7 +44,7 @@ public interface ElasticSearchClient extends Configurable {
    *    Name of type of document which will be sent to the elasticsearch cluster
    * @throws Exception
    */
-  public void addEvent(Event event, IndexNameBuilder indexNameBuilder,
+  void addEvent(Event event, IndexNameBuilder indexNameBuilder,
       String indexType) throws Exception;
 
   /**

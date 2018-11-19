@@ -128,7 +128,7 @@ public class  ElasticSearchRestClient implements ElasticSearchClient {
         throw new EventDeliveryException(bulkResponse.buildFailureMessage());
       }
     } finally {
-      bulkRequest = new BulkRequest();;
+      bulkRequest = new BulkRequest();
     }
   }
 
@@ -163,6 +163,7 @@ public class  ElasticSearchRestClient implements ElasticSearchClient {
         e.printStackTrace();
       }
     }
-    client = new RestHighLevelClient(RestClient.builder(new HttpHost("127.0.0.1", 9200, "http")));
+    String localhost = "127.0.0.1";
+    client = new RestHighLevelClient(RestClient.builder(new HttpHost(localhost, 9200, "http")));
   }
 }

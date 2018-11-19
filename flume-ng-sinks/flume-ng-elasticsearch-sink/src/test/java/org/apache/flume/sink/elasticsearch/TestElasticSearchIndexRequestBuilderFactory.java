@@ -35,7 +35,6 @@ import org.junit.Test;
 import org.mockito.internal.matchers.Matches;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
 
