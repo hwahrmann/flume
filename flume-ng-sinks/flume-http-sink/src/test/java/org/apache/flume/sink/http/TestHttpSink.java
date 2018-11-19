@@ -216,6 +216,20 @@ public class TestHttpSink {
   }
 
   @Test
+  public void testErrorCounter() throws Exception {
+    RuntimeException exception = new RuntimeException("dummy");
+    when(channel.take()).thenThrow(exception);
+
+    Context context = new Context();
+    context.put("defaultRollback", "false");
+    context.put("defaultBackoff", "false");
+    context.put("defaultIncrementMetrics", "false");
+
+    executeWithMocks(false, Status.BACKOFF, false, false, context, HttpURLConnection.HTTP_OK);
+    inOrder(sinkCounter).verify(sinkCounter).incrementEventWriteOrChannelFail(exception);
+  }
+
+  @Test
   public void ensureSingleErrorStatusConfigurationCorrectlyUsed() throws Exception {
     when(channel.take()).thenReturn(event);
     when(event.getBody()).thenReturn("something".getBytes());

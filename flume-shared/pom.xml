@@ -31,16 +31,9 @@ limitations under the License.
   <name>Flume Shared Utils</name>
   <packaging>pom</packaging>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
 
   <modules>
+    <module>flume-shared-kafka</module>
     <module>flume-shared-kafka-test</module>
   </modules>
 

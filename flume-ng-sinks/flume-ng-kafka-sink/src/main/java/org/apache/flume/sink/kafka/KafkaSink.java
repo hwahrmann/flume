@@ -29,11 +29,13 @@ import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.Transaction;
+import org.apache.flume.conf.BatchSizeSupported;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.ConfigurationException;
 import org.apache.flume.conf.LogPrivacyUtil;
 import org.apache.flume.formatter.output.BucketPath;
 import org.apache.flume.instrumentation.kafka.KafkaSinkCounter;
+import org.apache.flume.shared.kafka.KafkaSSLUtil;
 import org.apache.flume.sink.AbstractSink;
 import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.apache.kafka.clients.producer.Callback;
@@ -102,7 +104,7 @@ import static org.apache.flume.sink.kafka.KafkaSinkConstants.MESSAGE_SERIALIZER_
  * topic
  * key
  */
-public class KafkaSink extends AbstractSink implements Configurable {
+public class KafkaSink extends AbstractSink implements Configurable, BatchSizeSupported {
 
   private static final Logger logger = LoggerFactory.getLogger(KafkaSink.class);
 
@@ -136,7 +138,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
     return topic;
   }
 
-  public int getBatchSize() {
+  public long getBatchSize() {
     return batchSize;
   }
 
@@ -250,6 +252,7 @@ public class KafkaSink extends AbstractSink implements Configurable {
     } catch (Exception ex) {
       String errorMsg = "Failed to publish events";
       logger.error("Failed to publish events", ex);
+      counter.incrementEventWriteOrChannelFail(ex);
       result = Status.BACKOFF;
       if (transaction != null) {
         try {
@@ -418,6 +421,8 @@ public class KafkaSink extends AbstractSink implements Configurable {
     kafkaProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, DEFAULT_VALUE_SERIAIZER);
     kafkaProps.putAll(context.getSubProperties(KAFKA_PRODUCER_PREFIX));
     kafkaProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootStrapServers);
+
+    KafkaSSLUtil.addGlobalSSLParameters(kafkaProps);
   }
 
   protected Properties getKafkaProps() {

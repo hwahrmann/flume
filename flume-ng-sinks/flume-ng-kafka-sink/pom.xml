@@ -22,12 +22,14 @@
   <artifactId>flume-ng-kafka-sink</artifactId>
   <name>Flume Kafka Sink</name>
 
+  <properties>
+    <!-- TODO fix spotbugs/pmd violations -->
+    <spotbugs.maxAllowedViolations>3</spotbugs.maxAllowedViolations>
+    <pmd.maxAllowedViolations>3</pmd.maxAllowedViolations>
+  </properties>
+
   <build>
     <plugins>
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-      </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-jar-plugin</artifactId>
@@ -56,6 +58,11 @@
     <dependency>
       <groupId>org.apache.flume</groupId>
       <artifactId>flume-ng-configuration</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.flume.flume-shared</groupId>
+      <artifactId>flume-shared-kafka</artifactId>
     </dependency>
 
     <dependency>
@@ -107,6 +114,12 @@
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-1.2-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-all</artifactId>
       <scope>test</scope>
     </dependency>
 
