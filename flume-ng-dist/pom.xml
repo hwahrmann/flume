@@ -54,12 +54,6 @@
           </execution>
         </executions>
       </plugin>
-
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-      </plugin>
-
     </plugins>
   </build>
 
@@ -154,6 +148,10 @@
     </dependency>
     <dependency>
       <groupId>org.apache.flume.flume-ng-sinks</groupId>
+      <artifactId>flume-ng-hbase2-sink</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flume.flume-ng-sinks</groupId>
       <artifactId>flume-http-sink</artifactId>
     </dependency>
     <dependency>
@@ -195,6 +193,22 @@
     <dependency>
       <groupId>org.apache.flume.flume-ng-sources</groupId>
       <artifactId>flume-taildir-source</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flume</groupId>
+      <artifactId>flume-ng-environment-variable-config-filter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flume</groupId>
+      <artifactId>flume-ng-hadoop-credential-store-config-filter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flume</groupId>
+      <artifactId>flume-ng-external-process-config-filter</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.flume</groupId>
+      <artifactId>flume-ng-config-filter-api</artifactId>
     </dependency>
     <dependency>
       <groupId>org.apache.flume.flume-ng-clients</groupId>

@@ -41,11 +41,13 @@ import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.FlumeException;
+import org.apache.flume.conf.BatchSizeSupported;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.ConfigurationException;
 import org.apache.flume.conf.LogPrivacyUtil;
 import org.apache.flume.event.EventBuilder;
 import org.apache.flume.instrumentation.kafka.KafkaSourceCounter;
+import org.apache.flume.shared.kafka.KafkaSSLUtil;
 import org.apache.flume.source.AbstractPollableSource;
 import org.apache.flume.source.avro.AvroFlumeEvent;
 import org.apache.kafka.clients.CommonClientConfigs;
@@ -94,7 +96,7 @@ import static scala.collection.JavaConverters.asJavaListConverter;
  * <p>
  */
 public class KafkaSource extends AbstractPollableSource
-        implements Configurable {
+        implements Configurable, BatchSizeSupported {
   private static final Logger log = LoggerFactory.getLogger(KafkaSource.class);
 
   // Constants used only for offset migration zookeeper connections
@@ -129,6 +131,11 @@ public class KafkaSource extends AbstractPollableSource
   private boolean migrateZookeeperOffsets = DEFAULT_MIGRATE_ZOOKEEPER_OFFSETS;
   private String topicHeader = null;
   private boolean setTopicHeader;
+
+  @Override
+  public long getBatchSize() {
+    return batchUpperLimit;
+  }
 
   /**
    * This class is a helper to subscribe for topics by using
@@ -315,6 +322,7 @@ public class KafkaSource extends AbstractPollableSource
       return Status.BACKOFF;
     } catch (Exception e) {
       log.error("KafkaSource EXCEPTION, {}", e);
+      counter.incrementEventReadOrChannelFail(e);
       return Status.BACKOFF;
     }
   }
@@ -454,6 +462,8 @@ public class KafkaSource extends AbstractPollableSource
     }
     kafkaProps.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
                    KafkaSourceConstants.DEFAULT_AUTO_COMMIT);
+
+    KafkaSSLUtil.addGlobalSSLParameters(kafkaProps);
   }
 
   /**

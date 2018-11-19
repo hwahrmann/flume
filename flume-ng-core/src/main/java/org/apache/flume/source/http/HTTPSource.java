@@ -25,7 +25,7 @@ import org.apache.flume.Event;
 import org.apache.flume.EventDrivenSource;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.instrumentation.SourceCounter;
-import org.apache.flume.source.AbstractSource;
+import org.apache.flume.source.SslContextAwareAbstractSource;
 import org.apache.flume.tools.FlumeBeanConfigurator;
 import org.apache.flume.tools.HTTPServerConstraintUtil;
 import org.eclipse.jetty.server.HttpConfiguration;
@@ -48,9 +48,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -78,7 +76,7 @@ import java.util.Map;
  * A JSON handler which converts JSON objects to Flume events is provided.
  *
  */
-public class HTTPSource extends AbstractSource implements
+public class HTTPSource extends SslContextAwareAbstractSource implements
         EventDrivenSource, Configurable {
   /*
    * There are 2 ways of doing this:
@@ -100,21 +98,13 @@ public class HTTPSource extends AbstractSource implements
   private HTTPSourceHandler handler;
   private SourceCounter sourceCounter;
 
-  // SSL configuration variable
-  private volatile String keyStorePath;
-  private volatile String keyStorePassword;
-  private volatile Boolean sslEnabled;
-  private final List<String> excludedProtocols = new LinkedList<String>();
-
   private Context sourceContext;
 
   @Override
   public void configure(Context context) {
+    configureSsl(context);
     sourceContext = context;
     try {
-      // SSL related config
-      sslEnabled = context.getBoolean(HTTPSourceConfigurationConstants.SSL_ENABLED, false);
-
       port = context.getInteger(HTTPSourceConfigurationConstants.CONFIG_PORT);
       host = context.getString(HTTPSourceConfigurationConstants.CONFIG_BIND,
           HTTPSourceConfigurationConstants.DEFAULT_BIND);
@@ -127,27 +117,6 @@ public class HTTPSource extends AbstractSource implements
       String handlerClassName = context.getString(
               HTTPSourceConfigurationConstants.CONFIG_HANDLER,
               HTTPSourceConfigurationConstants.DEFAULT_HANDLER).trim();
-
-      if (sslEnabled) {
-        LOG.debug("SSL configuration enabled");
-        keyStorePath = context.getString(HTTPSourceConfigurationConstants.SSL_KEYSTORE);
-        Preconditions.checkArgument(keyStorePath != null && !keyStorePath.isEmpty(),
-                                    "Keystore is required for SSL Conifguration" );
-        keyStorePassword =
-            context.getString(HTTPSourceConfigurationConstants.SSL_KEYSTORE_PASSWORD);
-        Preconditions.checkArgument(keyStorePassword != null,
-            "Keystore password is required for SSL Configuration");
-        String excludeProtocolsStr =
-            context.getString(HTTPSourceConfigurationConstants.EXCLUDE_PROTOCOLS);
-        if (excludeProtocolsStr == null) {
-          excludedProtocols.add("SSLv3");
-        } else {
-          excludedProtocols.addAll(Arrays.asList(excludeProtocolsStr.split(" ")));
-          if (!excludedProtocols.contains("SSLv3")) {
-            excludedProtocols.add("SSLv3");
-          }
-        }
-      }
 
       @SuppressWarnings("unchecked")
       Class<? extends HTTPSourceHandler> clazz =
@@ -196,24 +165,25 @@ public class HTTPSource extends AbstractSource implements
     httpConfiguration.addCustomizer(new SecureRequestCustomizer());
 
     FlumeBeanConfigurator.setConfigurationFields(httpConfiguration, sourceContext);
-    ServerConnector connector;
-
-    if (sslEnabled) {
+    ServerConnector connector = getSslContextSupplier().get().map(sslContext -> {
       SslContextFactory sslCtxFactory = new SslContextFactory();
+      sslCtxFactory.setSslContext(sslContext);
+      sslCtxFactory.setExcludeProtocols(getExcludeProtocols().toArray(new String[]{}));
+      sslCtxFactory.setIncludeProtocols(getIncludeProtocols().toArray(new String[]{}));
+      sslCtxFactory.setExcludeCipherSuites(getExcludeCipherSuites().toArray(new String[]{}));
+      sslCtxFactory.setIncludeCipherSuites(getIncludeCipherSuites().toArray(new String[]{}));
+
       FlumeBeanConfigurator.setConfigurationFields(sslCtxFactory, sourceContext);
-      sslCtxFactory.setExcludeProtocols(excludedProtocols.toArray(new String[0]));
-      sslCtxFactory.setKeyStorePath(keyStorePath);
-      sslCtxFactory.setKeyStorePassword(keyStorePassword);
-      
+
       httpConfiguration.setSecurePort(port);
       httpConfiguration.setSecureScheme("https");
 
-      connector = new ServerConnector(srv,
-          new SslConnectionFactory(sslCtxFactory,HttpVersion.HTTP_1_1.asString()),
-          new HttpConnectionFactory(httpConfiguration));
-    } else {
-      connector = new ServerConnector(srv, new HttpConnectionFactory(httpConfiguration));
-    }
+      return new ServerConnector(srv,
+        new SslConnectionFactory(sslCtxFactory, HttpVersion.HTTP_1_1.asString()),
+        new HttpConnectionFactory(httpConfiguration));
+    }).orElse(
+        new ServerConnector(srv, new HttpConnectionFactory(httpConfiguration))
+    );
 
     connector.setPort(port);
     connector.setHost(host);
@@ -265,12 +235,14 @@ public class HTTPSource extends AbstractSource implements
         events = handler.getEvents(request);
       } catch (HTTPBadRequestException ex) {
         LOG.warn("Received bad request from client. ", ex);
+        sourceCounter.incrementEventReadFail();
         response.sendError(HttpServletResponse.SC_BAD_REQUEST,
                 "Bad request from client. "
                 + ex.getMessage());
         return;
       } catch (Exception ex) {
         LOG.warn("Deserializer threw unexpected exception. ", ex);
+        sourceCounter.incrementEventReadFail();
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "Deserializer threw unexpected exception. "
                 + ex.getMessage());
@@ -284,12 +256,14 @@ public class HTTPSource extends AbstractSource implements
         LOG.warn("Error appending event to channel. "
                 + "Channel might be full. Consider increasing the channel "
                 + "capacity or make sure the sinks perform faster.", ex);
+        sourceCounter.incrementChannelWriteFail();
         response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
                 "Error appending event to channel. Channel might be full."
                 + ex.getMessage());
         return;
       } catch (Exception ex) {
         LOG.warn("Unexpected error appending event to channel. ", ex);
+        sourceCounter.incrementGenericProcessingFail();
         response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
                 "Unexpected error while appending event to channel. "
                 + ex.getMessage());
@@ -308,4 +282,20 @@ public class HTTPSource extends AbstractSource implements
       doPost(request, response);
     }
   }
+
+  @Override
+  protected void configureSsl(Context context) {
+    handleDeprecatedParameter(context, "ssl", "enableSSL");
+    handleDeprecatedParameter(context, "exclude-protocols", "excludeProtocols");
+    handleDeprecatedParameter(context, "keystore-password", "keystorePassword");
+
+    super.configureSsl(context);
+  }
+
+  private void handleDeprecatedParameter(Context context, String newParam, String oldParam) {
+    if (!context.containsKey(newParam) && context.containsKey(oldParam)) {
+      context.put(newParam, context.getString(oldParam));
+    }
+  }
+
 }

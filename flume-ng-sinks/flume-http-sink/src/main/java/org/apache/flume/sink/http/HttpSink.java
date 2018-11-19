@@ -18,7 +18,6 @@
  */
 package org.apache.flume.sink.http;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.flume.Channel;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
@@ -276,6 +275,7 @@ public class HttpSink extends AbstractSink implements Configurable {
           status = Status.BACKOFF;
 
           LOG.error("Error opening connection, or request timed out", e);
+          sinkCounter.incrementEventWriteFail();
         }
 
       } else {
@@ -290,6 +290,7 @@ public class HttpSink extends AbstractSink implements Configurable {
       status = Status.BACKOFF;
 
       LOG.error("Error sending HTTP request, retrying", t);
+      sinkCounter.incrementEventWriteOrChannelFail(t);
 
       // re-throw all Errors
       if (t instanceof Error) {
@@ -323,7 +324,7 @@ public class HttpSink extends AbstractSink implements Configurable {
                                     final Context context,
                                     final Map<String, Boolean> override) {
 
-    ImmutableMap<String, String> config = context.getSubProperties(
+    Map<String, String> config = context.getSubProperties(
         propertyName + ".");
 
     if (config != null) {

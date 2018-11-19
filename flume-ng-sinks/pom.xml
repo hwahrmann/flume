@@ -31,19 +31,11 @@ limitations under the License.
   <name>Flume NG Sinks</name>
   <packaging>pom</packaging>
 
-  <build>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.rat</groupId>
-        <artifactId>apache-rat-plugin</artifactId>
-      </plugin>
-    </plugins>
-  </build>
-
   <modules>
     <module>flume-hdfs-sink</module>
     <module>flume-irc-sink</module>
     <module>flume-ng-hbase-sink</module>
+    <module>flume-ng-hbase2-sink</module>
     <module>flume-ng-elasticsearch-sink</module>
     <module>flume-ng-morphline-solr-sink</module>
     <module>flume-ng-kafka-sink</module>
