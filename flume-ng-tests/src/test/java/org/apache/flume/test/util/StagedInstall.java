@@ -24,7 +24,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.io.Files;
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
-import org.apache.log4j.Logger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileFilter;
@@ -48,7 +49,7 @@ import java.util.zip.GZIPInputStream;
  */
 public class StagedInstall {
 
-  private static final Logger LOGGER = Logger.getLogger(StagedInstall.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(StagedInstall.class);
 
   public static final String PROP_PATH_TO_DIST_TARBALL =
       "flume.dist.tarball";
@@ -122,11 +123,12 @@ public class StagedInstall {
   }
 
   public synchronized void startAgent(String name, Properties properties) throws Exception {
-    startAgent(name, properties, new HashMap<>());
+    startAgent(name, properties, new HashMap<>(), new HashMap<>());
   }
 
   public synchronized void startAgent(
-      String name, Properties properties,  Map<String, String> environmentVariables)
+      String name, Properties properties,  Map<String, String> environmentVariables,
+      Map<String, String> commandOptions)
       throws Exception {
     Preconditions.checkArgument(!name.isEmpty(), "agent name must not be empty");
     Preconditions.checkNotNull(properties, "properties object must not be null");
@@ -157,6 +159,8 @@ public class StagedInstall {
     builder.add("-D" + ENV_FLUME_ROOT_LOGGER + "="
             + ENV_FLUME_ROOT_LOGGER_VALUE);
     builder.add("-D" + ENV_FLUME_LOG_FILE + "=" + logFileName);
+
+    commandOptions.forEach((key, value) -> builder.add(key, value));
 
     List<String> cmdArgs = builder.build();
 

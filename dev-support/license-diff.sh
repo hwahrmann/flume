@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/usr/bin/env bash
 ################################################################################
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,28 +17,10 @@
 # specific language governing permissions and limitations
 # under the License.
 ################################################################################
-# Sign and checksum release artifacts.
+# Script to compare LICENSE file content and distributed jars
+# use after flume-ng-dist target has been generated (mvn clean package)
 ################################################################################
-DEV_SUPPORT=$(cd $(dirname $0); pwd)
-source "$DEV_SUPPORT/includes.sh"
+PROJECT_ROOT="$(cd $(dirname $0)/..; pwd)"
 
-usage() {
-  echo "Usage: $0 RELEASE_ARTIFACT" 1>&2
-  echo "Example: $0 ./apache-flume-1.7.0-src.tar.gz" 1>&2
-  exit 1
-}
-
-ARTIFACT=$1
-if [ ! -r "$ARTIFACT" ]; then
-  echo "The artifact at $ARTIFACT does not exist or is not readable." 1>&2
-  usage
-fi
-
-# The tools we need.
-GPG=$(find_in_path gpg)
-SHA512=$(find_in_path sha512sum)
-
-# Now sign and checksum the artifact.
-set -x
-$GPG --sign $ARTIFACT
-$SHA512 < $ARTIFACT > $ARTIFACT.sha512
+echo "LICENSE file <---------> jar files"
+diff -y <(grep .jar: ${PROJECT_ROOT}/LICENSE | sed -E 's/:|\s+//g' | sort) <(ls ${PROJECT_ROOT}/flume-ng-dist/target/apache-flume-*-bin/apache-flume-*-bin/lib/*.jar |xargs -n1 basename |grep -v flume | sed -E 's/(.+)-([^-]+).jar/\1-<version>.jar/' | uniq | sort)
