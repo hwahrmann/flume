@@ -14,9 +14,9 @@
    limitations under the License.
 
 
-===============================
-Flume 1.9.0-SNAPSHOT User Guide
-===============================
+================================
+Flume 1.10.0-SNAPSHOT User Guide
+================================
 
 Introduction
 ============
@@ -34,18 +34,6 @@ of event data including but not limited to network traffic data, social-media-ge
 email messages and pretty much any data source possible.
 
 Apache Flume is a top level project at the Apache Software Foundation.
-
-There are currently two release code lines available, versions 0.9.x and 1.x.
-
-Documentation for the 0.9.x track is available at
-`the Flume 0.9.x User Guide <http://archive.cloudera.com/cdh/3/flume/UserGuide/>`_.
-
-This documentation applies to the 1.4.x track.
-
-New and existing users are encouraged to use the 1.x releases so as to
-leverage the performance improvements and configuration flexibilities available
-in the latest architecture.
-
 
 System Requirements
 -------------------
@@ -853,6 +841,15 @@ the commands including the passwords will be saved to the command history.)
   performed on the truststore when it is opened by the JDK.
 
 
+Source and sink batch sizes and channel transaction capacities
+--------------------------------------------------------------
+
+Sources and sinks can have a batch size parameter that determines the maximum number of events they
+process in one batch. This happens within a channel transaction that has an upper limit called
+transaction capacity. Batch size must be smaller than the channel's transaction capacity.
+There is an explicit check to prevent incompatible settings. This check happens
+whenever the configuration is read.
+
 Flume Sources
 -------------
 
@@ -1375,6 +1372,10 @@ skipToEnd                           false                          Whether to sk
 idleTimeout                         120000                         Time (ms) to close inactive files. If the closed file is appended new lines to, this source will automatically re-open it.
 writePosInterval                    3000                           Interval time (ms) to write the last position of each file on the position file.
 batchSize                           100                            Max number of lines to read and send to the channel at a time. Using the default is usually fine.
+maxBatchCount                       Long.MAX_VALUE                 Controls the number of batches being read consecutively from the same file.
+                                                                   If the source is tailing multiple files and one of them is written at a fast rate,
+                                                                   it can prevent other files to be processed, because the busy file would be read in an endless loop.
+                                                                   In this case lower this value.
 backoffSleepIncrement               1000                           The increment for time delay before reattempting to poll for new data, when the last attempt did not find any new data.
 maxBackoffSleep                     5000                           The max time delay between each reattempt to poll for new data, when the last attempt did not find any new data.
 cachePatternMatching                true                           Listing directories and applying the filename regex pattern may be time consuming for directories
@@ -1401,6 +1402,7 @@ Example for agent named a1:
   a1.sources.r1.headers.f2.headerKey1 = value2
   a1.sources.r1.headers.f2.headerKey2 = value2-2
   a1.sources.r1.fileHeader = true
+  a1.sources.ri.maxBatchCount = 1000
 
 Twitter 1% firehose Source (experimental)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1448,7 +1450,7 @@ Kafka Source
 
 Kafka Source is an Apache Kafka consumer that reads messages from Kafka topics.
 If you have multiple Kafka sources running, you can configure them with the same Consumer Group
-so each will read a unique set of partitions for the topics.
+so each will read a unique set of partitions for the topics. This currently supports Kafka server releases 0.10.1.0 or higher. Testing was done up to 2.0.1 that was the highest avilable version at the time of the release.
 
 ==================================  ===========  ===================================================
 Property Name                       Default      Description
@@ -1481,12 +1483,6 @@ topicHeader                         topic        Defines the name of the header 
                                                  from, if the ``setTopicHeader`` property is set to ``true``. Care should be taken if combining
                                                  with the Kafka Sink ``topicHeader`` property so as to avoid sending the message back to the same
                                                  topic in a loop.
-migrateZookeeperOffsets             true         When no Kafka stored offset is found, look up the offsets in Zookeeper and commit them to Kafka.
-                                                 This should be true to support seamless Kafka client migration from older versions of Flume.
-                                                 Once migrated this can be set to false, though that should generally not be required.
-                                                 If no Zookeeper offset is found, the Kafka configuration kafka.consumer.auto.offset.reset
-                                                 defines how offsets are handled.
-                                                 Check `Kafka documentation <http://kafka.apache.org/documentation.html#newconsumerconfigs>`_ for details
 kafka.consumer.security.protocol    PLAINTEXT    Set to SASL_PLAINTEXT, SASL_SSL or SSL if writing to Kafka using some level of security. See below for additional info on secure setup.
 *more consumer security props*                   If using SASL_PLAINTEXT, SASL_SSL or SSL refer to `Kafka security <http://kafka.apache.org/documentation.html#security>`_ for additional
                                                  properties that need to be set on consumer.
@@ -1504,14 +1500,21 @@ Other Kafka Consumer Properties     --           These properties are used to co
 
 Deprecated Properties
 
-===============================  ===================  =============================================================================================
+===============================  ===================  ================================================================================================
 Property Name                    Default              Description
-===============================  ===================  =============================================================================================
+===============================  ===================  ================================================================================================
 topic                            --                   Use kafka.topics
 groupId                          flume                Use kafka.consumer.group.id
 zookeeperConnect                 --                   Is no longer supported by kafka consumer client since 0.9.x. Use kafka.bootstrap.servers
                                                       to establish connection with kafka cluster
-===============================  ===================  =============================================================================================
+migrateZookeeperOffsets          true                 When no Kafka stored offset is found, look up the offsets in Zookeeper and commit them to Kafka.
+                                                      This should be true to support seamless Kafka client migration from older versions of Flume.
+                                                      Once migrated this can be set to false, though that should generally not be required.
+                                                      If no Zookeeper offset is found, the Kafka configuration kafka.consumer.auto.offset.reset
+                                                      defines how offsets are handled.
+                                                      Check `Kafka documentation <http://kafka.apache.org/documentation.html#newconsumerconfigs>`_
+                                                      for details
+===============================  ===================  ================================================================================================
 
 Example for topic subscription by comma-separated topic list.
 
@@ -1978,7 +1981,7 @@ selector.type                      replicating or multiplexing
 selector.*            replicating  Depends on the selector.type value
 interceptors          --           Space-separated list of interceptors
 interceptors.*
-====================  ===========  =================================================================
+====================  ===========  ================================================================
 
 
 For example, a syslog UDP source for agent named a1:
@@ -2372,6 +2375,7 @@ hdfs.filePrefix         FlumeData     Name prefixed to files created by Flume in
 hdfs.fileSuffix         --            Suffix to append to file (eg ``.avro`` - *NOTE: period is not automatically added*)
 hdfs.inUsePrefix        --            Prefix that is used for temporal files that flume actively writes into
 hdfs.inUseSuffix        ``.tmp``      Suffix that is used for temporal files that flume actively writes into
+hdfs.emptyInUseSuffix   false         If ``false`` an ``hdfs.inUseSuffix`` is used while writing the output. After closing the output ``hdfs.inUseSuffix`` is removed from the output file name. If ``true`` the ``hdfs.inUseSuffix`` parameter is ignored an empty string is used instead.
 hdfs.rollInterval       30            Number of seconds to wait before rolling current file
                                       (0 = never roll based on time interval)
 hdfs.rollSize           1024          File size to trigger roll, in bytes (0: never roll based on file size)
@@ -2387,8 +2391,6 @@ hdfs.fileType           SequenceFile  File format: currently ``SequenceFile``, `
 hdfs.maxOpenFiles       5000          Allow only this number of open files. If this number is exceeded, the oldest file is closed.
 hdfs.minBlockReplicas   --            Specify minimum number of replicas per HDFS block. If not specified, it comes from the default Hadoop config in the classpath.
 hdfs.writeFormat        Writable      Format for sequence file records. One of ``Text`` or ``Writable``. Set to ``Text`` before creating data files with Flume, otherwise those files cannot be read by either Apache Impala (incubating) or Apache Hive.
-hdfs.callTimeout        10000         Number of milliseconds allowed for HDFS operations, such as open, write, flush, close.
-                                      This number should be increased if many HDFS timeout operations are occurring.
 hdfs.threadsPoolSize    10            Number of threads per HDFS sink for HDFS IO ops (open, write, etc.)
 hdfs.rollTimerPoolSize  1             Number of threads per HDFS sink for scheduling timed file rolling
 hdfs.kerberosPrincipal  --            Kerberos user principal for accessing secure HDFS
@@ -2412,6 +2414,14 @@ serializer              ``TEXT``      Other possible options include ``avro_even
 serializer.*
 ======================  ============  ======================================================================
 
+Deprecated Properties
+
+Name                    Default       Description
+======================  ============  ======================================================================
+hdfs.callTimeout        30000         Number of milliseconds allowed for HDFS operations, such as open, write, flush, close.
+                                      This number should be increased if many HDFS timeout operations are occurring.
+======================  ============  ======================================================================
+
 Example for agent named a1:
 
 .. code-block:: properties
@@ -2420,7 +2430,7 @@ Example for agent named a1:
   a1.sinks = k1
   a1.sinks.k1.type = hdfs
   a1.sinks.k1.channel = c1
-  a1.sinks.k1.hdfs.path = /flume/events/%y-%m-%d/%H%M/%S
+  a1.sinks.k1.hdfs.path = /flume/events/%Y-%m-%d/%H%M/%S
   a1.sinks.k1.hdfs.filePrefix = events-
   a1.sinks.k1.hdfs.round = true
   a1.sinks.k1.hdfs.roundValue = 10
@@ -3128,9 +3138,9 @@ Kafka Sink
 This is a Flume Sink implementation that can publish data to a
 `Kafka <http://kafka.apache.org/>`_ topic. One of the objective is to integrate Flume
 with Kafka so that pull based processing systems can process the data coming
-through various Flume sources. This currently supports Kafka 0.9.x series of releases.
+through various Flume sources.
 
-This version of Flume no longer supports Older Versions (0.8.x) of Kafka.
+This currently supports Kafka server releases 0.10.1.0 or higher. Testing was done up to 2.0.1 that was the highest avilable version at the time of the release.
 
 Required properties are marked in bold font.
 
@@ -3535,9 +3545,7 @@ The Kafka channel can be used for multiple scenarios:
 #. With Flume source and interceptor but no sink - it allows writing Flume events into a Kafka topic, for use by other apps
 #. With Flume sink, but no source - it is a low-latency, fault tolerant way to send events from Kafka to Flume sinks such as HDFS, HBase or Solr
 
-
-This version of Flume requires Kafka version 0.9 or greater due to the reliance on the Kafka clients shipped with that version. The configuration of
-the channel has changed compared to previous flume versions.
+This currently supports Kafka server releases 0.10.1.0 or higher. Testing was done up to 2.0.1 that was the highest avilable version at the time of the release.
 
 The configuration parameters are organized as such:
 
@@ -3567,10 +3575,6 @@ parseAsFlumeEvent                        true                        Expecting A
                                                                      This should be true if Flume source is writing to the channel and false if other producers are
                                                                      writing into the topic that the channel is using. Flume source messages to Kafka can be parsed outside of Flume by using
                                                                      org.apache.flume.source.avro.AvroFlumeEvent provided by the flume-ng-sdk artifact
-migrateZookeeperOffsets                  true                        When no Kafka stored offset is found, look up the offsets in Zookeeper and commit them to Kafka.
-                                                                     This should be true to support seamless Kafka client migration from older versions of Flume. Once migrated this can be set
-                                                                     to false, though that should generally not be required. If no Zookeeper offset is found the kafka.consumer.auto.offset.reset
-                                                                     configuration defines how offsets are handled.
 pollTimeout                              500                         The amount of time(in milliseconds) to wait in the "poll()" call of the consumer.
                                                                      https://kafka.apache.org/090/javadoc/org/apache/kafka/clients/consumer/KafkaConsumer.html#poll(long)
 defaultPartitionId                       --                          Specifies a Kafka partition ID (integer) for all events in this channel to be sent to, unless
@@ -3595,17 +3599,20 @@ kafka.consumer.security.protocol         PLAINTEXT                   Same as kaf
 
 Deprecated Properties
 
-================================  ==========================  ===============================================================================================================
+================================  ==========================  ============================================================================================================================
 Property Name                     Default                     Description
-================================  ==========================  ===============================================================================================================
+================================  ==========================  ============================================================================================================================
 brokerList                        --                          List of brokers in the Kafka cluster used by the channel
                                                               This can be a partial list of brokers, but we recommend at least two for HA.
                                                               The format is comma separated list of hostname:port
 topic                             flume-channel               Use kafka.topic
 groupId                           flume                       Use kafka.consumer.group.id
 readSmallestOffset                false                       Use kafka.consumer.auto.offset.reset
-
-================================  ==========================  ===============================================================================================================
+migrateZookeeperOffsets           true                        When no Kafka stored offset is found, look up the offsets in Zookeeper and commit them to Kafka.
+                                                              This should be true to support seamless Kafka client migration from older versions of Flume. Once migrated this can be set
+                                                              to false, though that should generally not be required. If no Zookeeper offset is found the kafka.consumer.auto.offset.reset
+                                                              configuration defines how offsets are handled.
+================================  ==========================  ============================================================================================================================
 
 .. note:: Due to the way the channel is load balanced, there may be duplicate events when the agent first starts up
 
@@ -4763,6 +4770,9 @@ The ``generateUniqId.sh`` will return ``1234`` with an exit code ``0``.
 Hadoop Credential Store Config Filter
 -------------------------------------
 
+A hadoop-common library needed on the classpath for this feature (2.6+ version).
+If hadoop is installed the agent adds it to the classpath automatically
+
 =============================================== ========== ==============================================
 Property Name                                   Default                        Description
 =============================================== ========== ==============================================
@@ -4796,7 +4806,7 @@ Log4J Appender
 
 Appends Log4j events to a flume agent's avro source. A client using this
 appender must have the flume-ng-sdk in the classpath (eg,
-flume-ng-sdk-1.9.0-SNAPSHOT.jar).
+flume-ng-sdk-1.10.0-SNAPSHOT.jar).
 Required properties are in **bold**.
 
 =====================  =======  ==================================================================================
@@ -4860,7 +4870,7 @@ Load Balancing Log4J Appender
 
 Appends Log4j events to a list of flume agent's avro source. A client using this
 appender must have the flume-ng-sdk in the classpath (eg,
-flume-ng-sdk-1.9.0-SNAPSHOT.jar). This appender supports a round-robin and random
+flume-ng-sdk-1.10.0-SNAPSHOT.jar). This appender supports a round-robin and random
 scheme for performing the load balancing. It also supports a configurable backoff
 timeout so that down agents are removed temporarily from the set of hosts
 Required properties are in **bold**.
@@ -4940,6 +4950,182 @@ Monitoring
 Monitoring in Flume is still a work in progress. Changes can happen very often.
 Several Flume components report metrics to the JMX platform MBean server. These
 metrics can be queried using Jconsole.
+
+Available Component Metrics
+---------------------------
+
+The following tables show what metrics are available for components. Each component only maintains a
+set of metrics, indicated by an 'x', the unmaintained ones show default values, that is 0.
+These tables tell you where you can expect meaningful data.
+The name of the metrics should be descriptive enough, for more information you have to dig into the
+source code of the components.
+
+Sources 1
+~~~~~~~~~
+
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+|                          | Avro | Exec | HTTP | JMS | Kafka | MultiportSyslogTCP | Scribe |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| AppendAcceptedCount      | x    |      |      |     |       |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| AppendBatchAcceptedCount | x    |      | x    | x   |       |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| AppendBatchReceivedCount | x    |      | x    | x   |       |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| AppendReceivedCount      | x    |      |      |     |       |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| ChannelWriteFail         | x    |      | x    | x   | x     | x                  | x      |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| EventAcceptedCount       | x    | x    | x    | x   | x     | x                  | x      |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| EventReadFail            |      |      | x    | x   | x     | x                  | x      |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| EventReceivedCount       | x    | x    | x    | x   | x     | x                  | x      |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| GenericProcessingFail    |      |      | x    |     |       | x                  |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| KafkaCommitTimer         |      |      |      |     | x     |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| KafkaEmptyCount          |      |      |      |     | x     |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| KafkaEventGetTimer       |      |      |      |     | x     |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+| OpenConnectionCount      | x    |      |      |     |       |                    |        |
++--------------------------+------+------+------+-----+-------+--------------------+--------+
+
+Sources 2
+~~~~~~~~~
+
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+|                          | SequenceGenerator | SpoolDirectory | SyslogTcp | SyslogUDP | Taildir | Thrift |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| AppendAcceptedCount      |                   |                |           |           |         | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| AppendBatchAcceptedCount | x                 | x              |           |           | x       | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| AppendBatchReceivedCount |                   | x              |           |           | x       | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| AppendReceivedCount      |                   |                |           |           |         | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| ChannelWriteFail         | x                 | x              | x         | x         | x       | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| EventAcceptedCount       | x                 | x              | x         | x         | x       | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| EventReadFail            |                   | x              | x         | x         | x       |        |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| EventReceivedCount       |                   | x              | x         | x         | x       | x      |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| GenericProcessingFail    |                   | x              |           |           | x       |        |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| KafkaCommitTimer         |                   |                |           |           |         |        |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| KafkaEmptyCount          |                   |                |           |           |         |        |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| KafkaEventGetTimer       |                   |                |           |           |         |        |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+| OpenConnectionCount      |                   |                |           |           |         |        |
++--------------------------+-------------------+----------------+-----------+-----------+---------+--------+
+
+Sinks 1
+~~~~~~~
+
++------------------------+-------------+------------+---------------+-------+--------+
+|                        | Avro/Thrift | AsyncHBase | ElasticSearch | HBase | HBase2 |
++------------------------+-------------+------------+---------------+-------+--------+
+| BatchCompleteCount     | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| BatchEmptyCount        | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| BatchUnderflowCount    | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| ChannelReadFail        | x           |            |               |       | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| ConnectionClosedCount  | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| ConnectionCreatedCount | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| ConnectionFailedCount  | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| EventDrainAttemptCount | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| EventDrainSuccessCount | x           | x          | x             | x     | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| EventWriteFail         | x           |            |               |       | x      |
++------------------------+-------------+------------+---------------+-------+--------+
+| KafkaEventSendTimer    |             |            |               |       |        |
++------------------------+-------------+------------+---------------+-------+--------+
+| RollbackCount          |             |            |               |       |        |
++------------------------+-------------+------------+---------------+-------+--------+
+
+Sinks 2
+~~~~~~~
+
++------------------------+-----------+------+------+-------+-----------+-------------+
+|                        | HDFSEvent | Hive | Http | Kafka | Morphline | RollingFile |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| BatchCompleteCount     | x         | x    |      |       | x         |             |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| BatchEmptyCount        | x         | x    |      | x     | x         |             |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| BatchUnderflowCount    | x         | x    |      | x     | x         |             |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| ChannelReadFail        | x         | x    | x    | x     | x         | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| ConnectionClosedCount  | x         | x    |      |       |           | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| ConnectionCreatedCount | x         | x    |      |       |           | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| ConnectionFailedCount  | x         | x    |      |       |           | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| EventDrainAttemptCount | x         | x    | x    |       | x         | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| EventDrainSuccessCount | x         | x    | x    | x     | x         | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| EventWriteFail         | x         | x    | x    | x     | x         | x           |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| KafkaEventSendTimer    |           |      |      | x     |           |             |
++------------------------+-----------+------+------+-------+-----------+-------------+
+| RollbackCount          |           |      |      | x     |           |             |
++------------------------+-----------+------+------+-------+-----------+-------------+
+
+Channels
+~~~~~~~~
+
++---------------------------------+------+-------+--------+-----------------+-----------------+
+|                                 | File | Kafka | Memory | PseudoTxnMemory | SpillableMemory |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| ChannelCapacity                 | x    |       | x      |                 | x               |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| ChannelSize                     | x    |       | x      | x               | x               |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| CheckpointBackupWriteErrorCount | x    |       |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| CheckpointWriteErrorCount       | x    |       |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| EventPutAttemptCount            | x    | x     | x      | x               | x               |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| EventPutErrorCount              | x    |       |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| EventPutSuccessCount            | x    | x     | x      | x               | x               |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| EventTakeAttemptCount           | x    | x     | x      | x               | x               |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| EventTakeErrorCount             | x    |       |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| EventTakeSuccessCount           | x    | x     | x      | x               | x               |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| KafkaCommitTimer                |      | x     |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| KafkaEventGetTimer              |      | x     |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| KafkaEventSendTimer             |      | x     |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| Open                            | x    |       |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| RollbackCounter                 |      | x     |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
+| Unhealthy                       | x    |       |        |                 |                 |
++---------------------------------+------+-------+--------+-----------------+-----------------+
 
 JMX Reporting
 -------------
