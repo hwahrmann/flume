@@ -21,6 +21,7 @@ package org.apache.flume.sink.elasticsearch;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.event.EventBuilder;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.junit.Test;
@@ -57,8 +58,7 @@ public class TestElasticSearchDynamicSerializer {
 
     XContentBuilder actual = fixture.getContentBuilder(event);
 
-    assertEquals(expected.bytes().utf8ToString(), actual
-            .bytes().utf8ToString());
+    assertEquals(Strings.toString(expected), Strings.toString(actual));
 
   }
 }

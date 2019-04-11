@@ -25,6 +25,7 @@ import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.conf.ComponentConfiguration;
 import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
 
@@ -65,6 +66,6 @@ public class EventSerializerIndexRequestBuilderFactory
     XContentBuilder contentBuilder = serializer.getContentBuilder(event);
     indexRequest.setIndex(indexName)
         .setType(indexType)
-        .setSource(contentBuilder.bytes(), XContentType.JSON);
+        .setSource(Strings.toString(contentBuilder), XContentType.JSON);
   }
 }

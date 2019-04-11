@@ -35,6 +35,7 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.support.AbstractClient;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.transport.TransportAddress;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
@@ -169,7 +170,7 @@ public class ElasticSearchTransportClient implements ElasticSearchClient {
     if (indexRequestBuilderFactory == null) {
       indexRequestBuilder = client
           .prepareIndex(indexNameBuilder.getIndexName(event), indexType)
-          .setSource(serializer.getContentBuilder(event).bytes(), XContentType.JSON);
+          .setSource(Strings.toString(serializer.getContentBuilder(event)), XContentType.JSON);
     } else {
       indexRequestBuilder = indexRequestBuilderFactory.createIndexRequest(
           client, indexNameBuilder.getIndexPrefix(event), indexType, event);

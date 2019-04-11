@@ -41,10 +41,10 @@
         <groupId>com.github.alexcojocaru</groupId>
         <artifactId>elasticsearch-maven-plugin</artifactId>
         <!-- REPLACE THE FOLLOWING WITH THE PLUGIN VERSION YOU NEED -->
-        <version>6.0</version>
+        <version>6.9</version>
         <configuration>
            <!-- REPLACE THE FOLLOWING WITH THE ELASTICSEARCH VERSION YOU NEED -->
-           <version>6.2.1</version>
+           <version>6.6.0</version>
            <clusterName>test</clusterName>
            <transportPort>9300</transportPort>
            <httpPort>9200</httpPort>
@@ -57,7 +57,7 @@
           -->
           <execution>
             <id>start-elasticsearch</id>
-            <phase>test</phase>
+            <phase>process-test-classes</phase>
             <goals>
                 <goal>runforked</goal>
             </goals>
@@ -115,18 +115,6 @@
     <dependency>
       <groupId>junit</groupId>
       <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-api</artifactId>
-      <scope>test</scope>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.logging.log4j</groupId>
-      <artifactId>log4j-core</artifactId>
       <scope>test</scope>
     </dependency>
 

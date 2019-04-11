@@ -32,6 +32,7 @@ import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +118,7 @@ public class  ElasticSearchRestClient implements ElasticSearchClient {
     }
 
     bulkRequest.add(new IndexRequest(indexNameBuilder.getIndexName(event), indexType)
-        .source(serializer.getContentBuilder(event).bytes(), XContentType.JSON));
+        .source(Strings.toString(serializer.getContentBuilder(event)), XContentType.JSON));
   }
 
   @Override

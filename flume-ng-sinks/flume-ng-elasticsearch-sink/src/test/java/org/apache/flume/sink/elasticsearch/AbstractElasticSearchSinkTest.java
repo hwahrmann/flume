@@ -139,7 +139,7 @@ public abstract class AbstractElasticSearchSinkTest {
   void assertBodyQuery(int expectedHits, Event... events) {
     // Perform Multi Field Match
     assertSearch(expectedHits,
-        performSearch(QueryBuilders.matchQuery("@message", "event")),
+        performSearch(QueryBuilders.matchQuery("message", "event")),
         null, events);
   }
 
@@ -171,9 +171,9 @@ public abstract class AbstractElasticSearchSinkTest {
       SearchHit hit = hits[i];
       Map<String, Object> source = hit.getSourceAsMap();
       if (expectedBody == null) {
-        assertEquals(new String(event.getBody()), source.get("@message"));
+        assertEquals(new String(event.getBody()), source.get("message"));
       } else {
-        assertEquals(expectedBody, source.get("@message"));
+        assertEquals(expectedBody, source.get("message"));
       }
     }
   }

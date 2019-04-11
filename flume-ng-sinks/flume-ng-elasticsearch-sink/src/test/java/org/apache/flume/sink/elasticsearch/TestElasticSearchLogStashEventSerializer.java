@@ -22,6 +22,7 @@ import com.google.gson.JsonParser;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.event.EventBuilder;
+import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.collect.MapBuilder;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.junit.Test;
@@ -55,14 +56,13 @@ public class TestElasticSearchLogStashEventSerializer {
     event.setHeaders(headers);
 
     XContentBuilder expected = jsonBuilder().startObject();
-    expected.field("@message", new String(message.getBytes(), charset));
+    expected.field("message", new String(message.getBytes(), charset));
     expected.field("@timestamp", new Date(timestamp));
     expected.field("@source", "flume_tail_src");
     expected.field("@type", "sometype");
     expected.field("@source_host", "test@localhost");
     expected.field("@source_path", "/tmp/test");
 
-    expected.startObject("@fields");
     expected.field("timestamp", String.valueOf(timestamp));
     expected.field("src_path", "/tmp/test");
     expected.field("host", "test@localhost");
@@ -70,14 +70,13 @@ public class TestElasticSearchLogStashEventSerializer {
     expected.field("source", "flume_tail_src");
     expected.field("headerNameOne", "headerValueOne");
     expected.field("type", "sometype");
-    expected.endObject();
 
     expected.endObject();
 
     XContentBuilder actual = fixture.getContentBuilder(event);
     
     JsonParser parser = new JsonParser();
-    assertEquals(parser.parse(expected.string()),parser.parse(actual.string()));
+    assertEquals(parser.parse(Strings.toString(expected)),parser.parse(Strings.toString(actual)));
   }
 
   @Test
@@ -86,7 +85,7 @@ public class TestElasticSearchLogStashEventSerializer {
     Context context = new Context();
     fixture.configure(context);
 
-    String message = "{flume: somethingnotvalid}";
+    String message = "flume: somethingnotvalid";
     Map<String, String> headers = MapBuilder.<String, String>newMapBuilder().map();
     long timestamp = System.currentTimeMillis();
     headers.put("timestamp", String.valueOf(timestamp));
@@ -100,14 +99,13 @@ public class TestElasticSearchLogStashEventSerializer {
     event.setHeaders(headers);
 
     XContentBuilder expected = jsonBuilder().startObject();
-    expected.field("@message", new String(message.getBytes(), charset));
+    expected.field("message", new String(message.getBytes(), charset));
     expected.field("@timestamp", new Date(timestamp));
     expected.field("@source", "flume_tail_src");
     expected.field("@type", "sometype");
     expected.field("@source_host", "test@localhost");
     expected.field("@source_path", "/tmp/test");
 
-    expected.startObject("@fields");
     expected.field("timestamp", String.valueOf(timestamp));
     expected.field("src_path", "/tmp/test");
     expected.field("host", "test@localhost");
@@ -117,11 +115,10 @@ public class TestElasticSearchLogStashEventSerializer {
     expected.field("type", "sometype");
     expected.endObject();
 
-    expected.endObject();
-
     XContentBuilder actual = fixture.getContentBuilder(event);
-
+    actual.close();
+    
     JsonParser parser = new JsonParser();
-    assertEquals(parser.parse(expected.string()),parser.parse(actual.string()));
+    assertEquals(parser.parse(Strings.toString(expected)),parser.parse(Strings.toString(actual)));
   }
 }

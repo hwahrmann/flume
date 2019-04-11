@@ -36,22 +36,16 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
  * Serialize flume events into the same format LogStash uses</p>
  *
  * This can be used to send events to ElasticSearch and use clients such as
- * Kabana which expect Logstash formated indexes
+ * Kibana which expect Logstash formated indexes
  *
  * <pre>
  * {
- *    "@timestamp": "2010-12-21T21:48:33.309258Z",
- *    "@tags": [ "array", "of", "tags" ],
- *    "@type": "string",
+ *    "@timestamp": "2019-04-11T21:48:33.309258Z",
  *    "@source": "source of the event, usually a URL."
- *    "@source_host": ""
- *    "@source_path": ""
- *    "@fields":{
- *       # a set of fields for this event
- *       "user": "jordan",
- *       "command": "shutdown -r":
- *     }
- *     "@message": "the original plain-text message"
+ *     "message": "the original plain-text message"
+ *     # any further fields, that are available in the event, like the following:
+ *     "user" : "a user name in the event"
+ *     "ip_src": "the source ip in the event"
  *   }
  * </pre>
  *
@@ -65,10 +59,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
  *  type: String -> @type: String
  *  source: String -> @source: String
  * </pre>
- *
- * @see https
- *      ://github.com/logstash/logstash/wiki/logstash%27s-internal-message-
- *      format
  */
 public class ElasticSearchLogStashEventSerializer implements
     ElasticSearchEventSerializer {
@@ -76,20 +66,19 @@ public class ElasticSearchLogStashEventSerializer implements
   @Override
   public XContentBuilder getContentBuilder(Event event) throws IOException {
     XContentBuilder builder = jsonBuilder().startObject();
-    appendBody(builder, event);
-    appendHeaders(builder, event);
+    appendFields(builder, event);
     builder.endObject();
     return builder;
   }
 
-  private void appendBody(XContentBuilder builder, Event event)
-      throws IOException, UnsupportedEncodingException {
-    byte[] body = event.getBody();
-    ContentBuilderUtil.appendField(builder, "@message", body);
-  }
-
-  private void appendHeaders(XContentBuilder builder, Event event)
+  private void appendFields(XContentBuilder builder, Event event)
       throws IOException {
+    
+    // Append the Event Body
+    byte[] body = event.getBody();
+    ContentBuilderUtil.appendField(builder, "message", body);
+    
+    // And now append the Event Header Fields
     Map<String, String> headers = MapBuilder.<String, String>newMapBuilder()
         .putAll(event.getHeaders()).map();
 
@@ -127,12 +116,10 @@ public class ElasticSearchLogStashEventSerializer implements
           srcPath.getBytes(charset));
     }
 
-    builder.startObject("@fields");
     for (String key : headers.keySet()) {
       byte[] val = headers.get(key).getBytes(charset);
       ContentBuilderUtil.appendField(builder, key, val);
     }
-    builder.endObject();
   }
 
   @Override

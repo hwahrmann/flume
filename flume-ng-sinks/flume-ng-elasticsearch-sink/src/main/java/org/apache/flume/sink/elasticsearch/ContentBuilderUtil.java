@@ -21,6 +21,7 @@ package org.apache.flume.sink.elasticsearch;
 import java.io.IOException;
 import java.nio.charset.Charset;
 
+import org.elasticsearch.common.xcontent.DeprecationHandler;
 import org.elasticsearch.common.xcontent.NamedXContentRegistry;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
@@ -64,7 +65,8 @@ public class ContentBuilderUtil {
       // If validation fails then the incoming event is submitted to
       // elasticsearch as plain text.
       parser = XContentFactory.xContent(contentType)
-          .createParser(NamedXContentRegistry.EMPTY, data);
+         .createParser(NamedXContentRegistry.EMPTY, 
+             DeprecationHandler.THROW_UNSUPPORTED_OPERATION, data);
       // Add the field name, but not the value.
       builder.field(fieldName);
       // This will add the whole parsed content as the value of the field.

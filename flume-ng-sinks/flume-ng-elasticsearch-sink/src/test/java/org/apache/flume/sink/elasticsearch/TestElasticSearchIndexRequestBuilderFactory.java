@@ -32,7 +32,6 @@ import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.transport.client.PreBuiltTransportClient;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.internal.matchers.Matches;
 
 import java.io.IOException;
 import java.util.Locale;
@@ -44,7 +43,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertThat;
 
 public class TestElasticSearchIndexRequestBuilderFactory
     extends AbstractElasticSearchSinkTest {
@@ -143,9 +141,6 @@ public class TestElasticSearchIndexRequestBuilderFactory
         + ElasticSearchIndexRequestBuilderFactory.df.format(FIXED_TIME_MILLIS),
         indexRequestBuilder.request().index());
     assertEquals(indexType, indexRequestBuilder.request().type());
-    
-    assertThat(new String(indexRequestBuilder.request().source().toBytesRef().bytes), 
-        new Matches(".*@message.*"));
   }
 
   @Test
