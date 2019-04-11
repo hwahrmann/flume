@@ -20,4 +20,9 @@ package org.apache.flume.sink.elasticsearch.client;
  * Exception class
  */
 class NoSuchClientTypeException extends Exception {
+
+  /**
+   * 
+   */
+  private static final long serialVersionUID = 1L;
 }

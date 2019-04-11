@@ -28,7 +28,6 @@ import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
-import org.elasticsearch.client.Response;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.collect.MapBuilder;
@@ -89,7 +88,7 @@ public abstract class AbstractElasticSearchSinkTest {
 
   void refreshIndex(String indexName) {
     try {
-      Response response = client.getLowLevelClient()
+      client.getLowLevelClient()
           .performRequest("POST", "/" + indexName + "/_refresh");
     } catch (IOException e) {
       e.printStackTrace();
