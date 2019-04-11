@@ -40,13 +40,6 @@ public class TestElasticSearchClientFactory {
     factory = new ElasticSearchClientFactory();
   }
 
-  @Test
-  public void shouldReturnTransportClient() throws Exception {
-    String[] hostNames = { "127.0.0.1" };
-    Object o = factory.getClient(ElasticSearchClientFactory.TransportClient,
-                                 hostNames, "test", serializer, null, false);
-    assertThat(o, instanceOf(ElasticSearchTransportClient.class));
-  }
 
   @Test
   public void shouldReturnRestClient() throws NoSuchClientTypeException {

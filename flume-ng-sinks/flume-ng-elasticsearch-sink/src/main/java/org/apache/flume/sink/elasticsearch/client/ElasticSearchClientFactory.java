@@ -26,7 +26,6 @@ import org.apache.flume.sink.elasticsearch.ElasticSearchIndexRequestBuilderFacto
  * of ElasticSearch clients.
  */
 public class ElasticSearchClientFactory {
-  public static final String TransportClient = "transport";
   public static final String RestClient = "rest";
 
   /**
@@ -46,11 +45,7 @@ public class ElasticSearchClientFactory {
       String clusterName, ElasticSearchEventSerializer serializer,
       ElasticSearchIndexRequestBuilderFactory indexBuilder, boolean compress) 
           throws NoSuchClientTypeException {
-    if (clientType.equalsIgnoreCase(TransportClient) && serializer != null) {
-      return new ElasticSearchTransportClient(hostNames, clusterName, compress, serializer);
-    } else if (clientType.equalsIgnoreCase(TransportClient) && indexBuilder != null) { 
-      return new ElasticSearchTransportClient(hostNames, clusterName, compress, indexBuilder);
-    } else if (clientType.equalsIgnoreCase(RestClient) && serializer != null) {
+    if (clientType.equalsIgnoreCase(RestClient) && serializer != null) {
       return new ElasticSearchRestClient(hostNames, serializer);
     }
     throw new NoSuchClientTypeException();
@@ -69,11 +64,7 @@ public class ElasticSearchClientFactory {
                                             ElasticSearchEventSerializer serializer,
                                             ElasticSearchIndexRequestBuilderFactory indexBuilder)
       throws NoSuchClientTypeException {
-    if (clientType.equalsIgnoreCase(TransportClient) && serializer != null) {
-      return new ElasticSearchTransportClient(serializer);
-    } else if (clientType.equalsIgnoreCase(TransportClient) && indexBuilder != null)  {
-      return new ElasticSearchTransportClient(indexBuilder);
-    } else if (clientType.equalsIgnoreCase(RestClient) && serializer != null) {
+    if (clientType.equalsIgnoreCase(RestClient) && serializer != null) {
       return new ElasticSearchRestClient(serializer);
     }
     throw new NoSuchClientTypeException();

@@ -49,7 +49,7 @@ import static org.apache.flume.sink.elasticsearch.ElasticSearchSinkConstants.DEF
 public class  ElasticSearchRestClient implements ElasticSearchClient {
 
   public static final Logger logger = LoggerFactory
-      .getLogger(ElasticSearchTransportClient.class);
+      .getLogger(ElasticSearchRestClient.class);
 
   private HttpHost[] serverAddresses;
   private ElasticSearchEventSerializer serializer;
