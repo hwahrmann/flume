@@ -30,6 +30,7 @@ import org.apache.http.HttpHost;
 import org.elasticsearch.action.bulk.BulkRequest;
 import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.Strings;
@@ -124,7 +125,7 @@ public class  ElasticSearchRestClient implements ElasticSearchClient {
   @Override
   public void execute() throws Exception {
     try {
-      BulkResponse bulkResponse = client.bulk(bulkRequest);
+      BulkResponse bulkResponse = client.bulk(bulkRequest, RequestOptions.DEFAULT);
       if (bulkResponse.hasFailures()) {
         throw new EventDeliveryException(bulkResponse.buildFailureMessage());
       }

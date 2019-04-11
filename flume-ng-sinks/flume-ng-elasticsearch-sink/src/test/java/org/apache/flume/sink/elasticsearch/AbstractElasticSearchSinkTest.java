@@ -26,8 +26,10 @@ import org.apache.flume.conf.Configurables;
 import org.apache.http.HttpHost;
 import org.elasticsearch.ElasticsearchException;
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.admin.indices.refresh.RefreshRequest;
 import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.collect.MapBuilder;
@@ -88,8 +90,8 @@ public abstract class AbstractElasticSearchSinkTest {
 
   void refreshIndex(String indexName) {
     try {
-      client.getLowLevelClient()
-          .performRequest("POST", "/" + indexName + "/_refresh");
+      RefreshRequest request = new RefreshRequest(indexName);
+      client.indices().refresh(request, RequestOptions.DEFAULT);
     } catch (IOException e) {
       e.printStackTrace();
     }
@@ -98,7 +100,7 @@ public abstract class AbstractElasticSearchSinkTest {
   void deleteIndex(String indexName) {
     try {
       DeleteIndexRequest request = new DeleteIndexRequest(indexName);
-      client.indices().delete(request);
+      client.indices().delete(request, RequestOptions.DEFAULT);
     } catch (ElasticsearchException ex) {
       if (ex.status() != RestStatus.NOT_FOUND) {
         // We accept an Index not found, but would like to get an error on everything else
@@ -145,7 +147,7 @@ public abstract class AbstractElasticSearchSinkTest {
   SearchResponse performSearch(QueryBuilder query) {
     try {
       return client.search(new SearchRequest(timestampedIndexName)
-          .source(new SearchSourceBuilder().query(query)));
+          .source(new SearchSourceBuilder().query(query)), RequestOptions.DEFAULT);
     } catch (IOException e) {
       e.printStackTrace();
       return null;
@@ -155,7 +157,7 @@ public abstract class AbstractElasticSearchSinkTest {
   void assertSearch(int expectedHits, SearchResponse response, Map<String, Object> expectedBody,
                     Event... events) {
     SearchHits hitResponse = response.getHits();
-    assertEquals(expectedHits, hitResponse.getTotalHits());
+    assertEquals(expectedHits + " hits", hitResponse.getTotalHits().toString());
 
     SearchHit[] hits = hitResponse.getHits();
     Arrays.sort(hits, new Comparator<SearchHit>() {
