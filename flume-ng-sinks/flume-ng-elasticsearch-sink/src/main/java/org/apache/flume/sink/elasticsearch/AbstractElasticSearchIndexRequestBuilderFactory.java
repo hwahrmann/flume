@@ -27,10 +27,9 @@ import org.apache.flume.conf.ComponentConfiguration;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.ConfigurableComponent;
 import org.apache.flume.formatter.output.BucketPath;
-import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RestHighLevelClient;
 
-import com.google.common.annotations.VisibleForTesting;
 
 /**
  * Abstract base class for custom implementations of
@@ -66,30 +65,25 @@ public abstract class AbstractElasticSearchIndexRequestBuilderFactory
   public abstract void configure(ComponentConfiguration arg0);
 
   /**
-   * Creates and prepares an {@link IndexRequestBuilder} from the supplied
-   * {@link Client} via delegation to the subclass-hook template methods
+   * Creates and prepares an {@link IndexRequest} from the supplied
+   * {@link RestHighLevelClient} via delegation to the subclass-hook template methods
    * {@link #getIndexName(String, long)} and
-   * {@link #prepareIndexRequest(IndexRequestBuilder, String, String, Event)}
+   * {@link #prepareIndexRequest(IndexRequestBuilder, String, Event)}
    */
   @Override
-  public IndexRequestBuilder createIndexRequest(Client client,
-        String indexPrefix, String indexType, Event event) throws IOException {
-    IndexRequestBuilder request = prepareIndex(client);
+  public IndexRequest createIndexRequest(RestHighLevelClient client,
+        String indexPrefix, Event event) throws IOException {
     String realIndexPrefix = BucketPath.escapeString(indexPrefix, event.getHeaders());
-    String realIndexType = BucketPath.escapeString(indexType, event.getHeaders());
 
     TimestampedEvent timestampedEvent = new TimestampedEvent(event);
     long timestamp = timestampedEvent.getTimestamp();
 
     String indexName = getIndexName(realIndexPrefix, timestamp);
-    prepareIndexRequest(request, indexName, realIndexType, timestampedEvent);
+    IndexRequest request = new IndexRequest(indexName);
+    prepareIndexRequest(request, timestampedEvent);
     return request;
   }
 
-  @VisibleForTesting
-  IndexRequestBuilder prepareIndex(Client client) {
-    return client.prepareIndex();
-  }
 
   /**
    * Gets the name of the index to use for an index request
@@ -105,20 +99,16 @@ public abstract class AbstractElasticSearchIndexRequestBuilderFactory
   }
 
   /**
-   * Prepares an ElasticSearch {@link IndexRequestBuilder} instance
+   * Prepares an ElasticSearch {@link IndexRequest} instance
    * @param indexRequest
-   *          The (empty) ElasticSearch {@link IndexRequestBuilder} to prepare
-   * @param indexName
-   *          Index name to use -- as per {@link #getIndexName(String, long)}
-   * @param indexType
-   *          Index type to use -- as configured on the sink
+   *          The (empty) ElasticSearch {@link IndexRequest} to prepare
    * @param event
    *          Flume event to serialize and add to index request
    * @throws IOException
    *           If an error occurs e.g. during serialization
   */
   protected abstract void prepareIndexRequest(
-      IndexRequestBuilder indexRequest, String indexName,
-      String indexType, Event event) throws IOException;
+      IndexRequest indexRequest, Event event) 
+          throws IOException;
 
 }

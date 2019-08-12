@@ -24,7 +24,7 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.flume.Context;
 import org.apache.flume.Event;
 import org.apache.flume.conf.ComponentConfiguration;
-import org.elasticsearch.action.index.IndexRequestBuilder;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.common.Strings;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentType;
@@ -61,11 +61,10 @@ public class EventSerializerIndexRequestBuilderFactory
   }
 
   @Override
-  protected void prepareIndexRequest(IndexRequestBuilder indexRequest,
-      String indexName, String indexType, Event event) throws IOException {
+  protected void prepareIndexRequest(IndexRequest indexRequest,
+      Event event) throws IOException {
     XContentBuilder contentBuilder = serializer.getContentBuilder(event);
-    indexRequest.setIndex(indexName)
-        .setType(indexType)
-        .setSource(Strings.toString(contentBuilder), XContentType.JSON);
+    indexRequest
+        .source(Strings.toString(contentBuilder), XContentType.JSON);
   }
 }

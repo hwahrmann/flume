@@ -22,8 +22,9 @@ import org.apache.commons.lang.time.FastDateFormat;
 import org.apache.flume.Event;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.conf.ConfigurableComponent;
+import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.client.Client;
+import org.elasticsearch.client.RestHighLevelClient;
 
 import java.io.IOException;
 import java.util.TimeZone;
@@ -41,19 +42,17 @@ public interface ElasticSearchIndexRequestBuilderFactory extends Configurable,
 
   /**
    * @param client
-   *          ElasticSearch {@link Client} to prepare index from
+   *          ElasticSearch {@link RestHighLevelClient} to prepare index from
    * @param indexPrefix
    *          Prefix of index name to use -- as configured on the sink
-   * @param indexType
-   *          Index type to use -- as configured on the sink
    * @param event
    *          Flume event to serialize and add to index request
-   * @return prepared ElasticSearch {@link IndexRequestBuilder} instance
+   * @return prepared ElasticSearch {@link IndexRequest} instance
    * @throws IOException
    *           If an error occurs e.g. during serialization
    */
-  IndexRequestBuilder createIndexRequest(Client client, String indexPrefix,
-      String indexType, Event event) throws IOException;
+  IndexRequest createIndexRequest(RestHighLevelClient client, String indexPrefix,
+      Event event) throws IOException;
 
 
 

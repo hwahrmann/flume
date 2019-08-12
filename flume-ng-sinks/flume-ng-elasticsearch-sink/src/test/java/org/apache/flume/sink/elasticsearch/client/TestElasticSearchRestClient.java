@@ -73,7 +73,7 @@ public class TestElasticSearchRestClient {
 
   @Test()
   public void shouldRetryBulkOperation() throws Exception {
-    fixture.addEvent(event, nameBuilder, "bar_type");
+    fixture.addEvent(event, nameBuilder);
     fixture.execute();
   }
 }

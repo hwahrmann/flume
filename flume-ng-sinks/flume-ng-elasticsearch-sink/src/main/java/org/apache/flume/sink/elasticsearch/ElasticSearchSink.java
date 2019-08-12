@@ -36,7 +36,6 @@ import org.apache.flume.Event;
 import org.apache.flume.EventDeliveryException;
 import org.apache.flume.Transaction;
 import org.apache.flume.conf.BatchSizeSupported;
-import org.apache.flume.formatter.output.BucketPath;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.instrumentation.SinkCounter;
 import org.apache.flume.sink.AbstractSink;
@@ -179,8 +178,7 @@ public class ElasticSearchSink extends AbstractSink implements Configurable, Bat
         if (event == null) {
           break;
         }
-        String realIndexType = BucketPath.escapeString(indexType, event.getHeaders());
-        client.addEvent(event, indexNameBuilder, realIndexType);
+        client.addEvent(event, indexNameBuilder);
       }
 
       if (count <= 0) {

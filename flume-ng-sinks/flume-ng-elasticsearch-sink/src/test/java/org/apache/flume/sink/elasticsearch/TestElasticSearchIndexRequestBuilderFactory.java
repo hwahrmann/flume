@@ -24,10 +24,10 @@ import org.apache.flume.Event;
 import org.apache.flume.conf.ComponentConfiguration;
 import org.apache.flume.conf.sink.SinkConfiguration;
 import org.apache.flume.event.SimpleEvent;
-import org.elasticsearch.action.index.IndexAction;
-import org.elasticsearch.action.index.IndexRequestBuilder;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.common.settings.Settings;
+import org.apache.http.HttpHost;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestHighLevelClient;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.junit.Before;
 import org.junit.Test;
@@ -46,8 +46,11 @@ import static org.junit.Assert.assertTrue;
 public class TestElasticSearchIndexRequestBuilderFactory
     extends AbstractElasticSearchSinkTest {
 
-  private static final Client FAKE_CLIENT = new PreBuiltTransportClient(Settings.EMPTY);
-
+  private static final RestHighLevelClient client = new RestHighLevelClient(
+      RestClient.builder(
+          new HttpHost("localhost", 9200, "http"),
+          new HttpHost("localhost", 9201, "http")));
+  
   private EventSerializerIndexRequestBuilderFactory factory;
 
   private FakeEventSerializer serializer;
@@ -55,12 +58,7 @@ public class TestElasticSearchIndexRequestBuilderFactory
   @Before
   public void setupFactory() throws Exception {
     serializer = new FakeEventSerializer();
-    factory = new EventSerializerIndexRequestBuilderFactory(serializer) {
-      @Override
-      IndexRequestBuilder prepareIndex(Client client) {
-        return new IndexRequestBuilder(FAKE_CLIENT, IndexAction.INSTANCE);
-      }
-    };
+    factory = new EventSerializerIndexRequestBuilderFactory(serializer);
   }
 
   @Test
@@ -130,55 +128,32 @@ public class TestElasticSearchIndexRequestBuilderFactory
       throws Exception {
 
     String indexPrefix = "qwerty";
-    String indexType = "uiop";
     Event event = new SimpleEvent();
 
-    IndexRequestBuilder indexRequestBuilder = factory.createIndexRequest(
-        FAKE_CLIENT, indexPrefix, indexType, event);
+    IndexRequest indexRequest = factory.createIndexRequest(
+        client, indexPrefix, event);
 
     assertEquals(indexPrefix + '-'
         + ElasticSearchIndexRequestBuilderFactory.df.format(FIXED_TIME_MILLIS),
-        indexRequestBuilder.request().index());
-    assertEquals(indexType, indexRequestBuilder.request().type());
+        getIndexNameFromRequest(indexRequest));
   }
 
   @Test
   public void shouldSetIndexNameFromTimestampHeaderWhenPresent()
       throws Exception {
     String indexPrefix = "qwerty";
-    String indexType = "uiop";
     Event event = new SimpleEvent();
     event.getHeaders().put("timestamp", "1213141516");
 
-    IndexRequestBuilder indexRequestBuilder = factory.createIndexRequest(
-        null, indexPrefix, indexType, event);
+    IndexRequest indexRequest = factory.createIndexRequest(
+        client, indexPrefix, event);
 
     assertEquals(indexPrefix + '-'
         + ElasticSearchIndexRequestBuilderFactory.df.format(1213141516L),
-        indexRequestBuilder.request().index());
+        getIndexNameFromRequest(indexRequest));
   }
 
-  @Test
-  public void shouldSetIndexNameTypeFromHeaderWhenPresent()
-      throws Exception {
-    String indexPrefix = "%{index-name}";
-    String indexType = "%{index-type}";
-    String indexValue = "testing-index-name-from-headers";
-    String typeValue = "testing-index-type-from-headers";
-
-    Event event = new SimpleEvent();
-    event.getHeaders().put("index-name", indexValue);
-    event.getHeaders().put("index-type", typeValue);
-
-    IndexRequestBuilder indexRequestBuilder = factory.createIndexRequest(
-        null, indexPrefix, indexType, event);
-
-    assertEquals(indexValue + '-'
-        + ElasticSearchIndexRequestBuilderFactory.df.format(FIXED_TIME_MILLIS),
-        indexRequestBuilder.request().index());
-    assertEquals(typeValue, indexRequestBuilder.request().type());
-  }
-
+  
   @Test
   public void shouldConfigureEventSerializer() throws Exception {
     assertFalse(serializer.configuredWithContext);
@@ -190,6 +165,18 @@ public class TestElasticSearchIndexRequestBuilderFactory
     assertTrue(serializer.configuredWithComponentConfiguration);
   }
 
+  
+  /**
+   * Returns the Indexname from the IndexRequest construct.
+   * The toString method returns something like this:
+   * "index {[qwerty-1970-01-15][_doc][null], source[{\"@message\":\"\\t\\b\\u0007\\u0006\"}]}"
+   * The index name is "qwerty-1970-01-15" in our case
+   */
+  private String getIndexNameFromRequest(IndexRequest indexRequest) {
+    String request = indexRequest.toString();
+    return request.substring(request.indexOf("{[") + 2, request.indexOf("]["));
+  }
+  
   static class FakeEventSerializer implements ElasticSearchEventSerializer {
 
     static final byte[] FAKE_BYTES = new byte[]{9, 8, 7, 6};

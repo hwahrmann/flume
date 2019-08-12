@@ -111,14 +111,14 @@ public class  ElasticSearchRestClient implements ElasticSearchClient {
   }
 
   @Override
-  public void addEvent(Event event, IndexNameBuilder indexNameBuilder,
-      String indexType) throws Exception {
+  public void addEvent(Event event, IndexNameBuilder indexNameBuilder) 
+      throws Exception {
     
     if (bulkRequest == null) {
       bulkRequest = new BulkRequest();
     }
 
-    bulkRequest.add(new IndexRequest(indexNameBuilder.getIndexName(event), indexType)
+    bulkRequest.add(new IndexRequest(indexNameBuilder.getIndexName(event))
         .source(Strings.toString(serializer.getContentBuilder(event)), XContentType.JSON));
   }
 
